@@ -1,2 +1,10 @@
 ﻿# enforce LF for shell scripts
 *.sh text eol=lf
+# Force LF for Python and shell scripts
+*.py text eol=lf
+*.sh text eol=lf
+
+# Ignore local backups/debug files
+entrypoint.sh.bak
+entrypoint_from_container.sh
+entrypoint_from_image.sh
