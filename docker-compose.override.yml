@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  web:
+    volumes:
+      - ./app:/code
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_DEBUG=True
+      - WAIT_FOR_DB=1
