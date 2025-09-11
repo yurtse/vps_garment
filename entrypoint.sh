@@ -27,3 +27,4 @@ python manage.py collectstatic --noinput
 
 # Execute passed commands (gunicorn by default)
 exec "$@"
+
