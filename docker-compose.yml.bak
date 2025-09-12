@@ -25,7 +25,7 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile
-      - static_volume:/code/staticfiles:ro
+      - rfclabs_static_volume:/code/staticfiles:ro
       - caddy_data:/data
       - caddy_config:/config
 
