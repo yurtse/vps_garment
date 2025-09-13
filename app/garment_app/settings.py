@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'core',
 ]
 
 MIDDLEWARE = [
@@ -146,4 +147,11 @@ STATICFILES_DIRS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # WhiteNoise settings (optional improvements)
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# import site admin customisations (run at startup)
+try:
+    from app import admin_custom  # adjust path if using a different module name
+except Exception:
+    # don't fail startup if this import errors; log optionally
+    pass
 

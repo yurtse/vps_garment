@@ -1,10 +1,10 @@
-garmentpro.rfc-labs.com {
+{$DOMAIN} {
   # redirect root to /admin
   @root {
     path /
     method GET
   }
-  redir @root /admin/ 302
+  redir @root /home/ 302
 
   # serve static files from the static volume the web container writes to
   handle_path /static/* {
