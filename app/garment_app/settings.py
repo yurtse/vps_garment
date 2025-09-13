@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'import_export',
-    'garment_app',   
+    'garment_app.apps.GarmentAppConfig',   
 ]
 
 MIDDLEWARE = [
