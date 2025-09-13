@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url  # make sure this package is installed
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -92,15 +93,13 @@ WSGI_APPLICATION = 'garment_app.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB", "rfc_garments_001"),
-        "USER": os.getenv("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        "HOST": os.getenv("POSTGRES_HOST", "db"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-    }
+    'default': dj_database_url.config(
+        default=f"postgres://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@{os.getenv('POSTGRES_HOST', 'db')}/{os.getenv('POSTGRES_DB')}",
+        conn_max_age=600,
+        ssl_require=False
+    )
 }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
