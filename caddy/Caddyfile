@@ -1,9 +1,26 @@
 {$DOMAIN} {
-  reverse_proxy web:8000
-  encode gzip
+  # redirect root to /admin
+  @root {
+    path /
+    method GET
+  }
+  redir @root /home/ 302
 
+  # serve static files from the static volume the web container writes to
   handle_path /static/* {
     root * /code/staticfiles
     file_server
   }
+
+  # proxy all other traffic to web
+  handle {
+    reverse_proxy web:8000
+  }
+
+  log {
+    output stdout
+    format console
+  }
+
+  encode zstd gzip
 }

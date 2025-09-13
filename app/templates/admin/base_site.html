@@ -1,0 +1,263 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{# =======================================================================
+   Extra CSS for searchbar, live search dropdown, z-index fix for header
+   ======================================================================= #}
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    /* Wider search bar */
+    #searchbar { width: 300px; }
+
+    /* Make sure the header stays above table contents */
+    header#header { z-index: 999; }
+
+    /* Live search dropdown styling */
+    .live-search-results {
+      position: absolute;
+      z-index: 9999;
+      background: #fff;
+      border: 1px solid #ddd;
+      max-height: 220px;
+      overflow: auto;
+    }
+  </style>
+{% endblock %}
+
+{# =======================================================================
+   Extra HEAD content: static CSS/JS, favicon, custom scripts
+   ======================================================================= #}
+{% block extrahead %}
+  {{ block.super }}
+
+  {# Custom CSS and JS for admin tweaks #}
+  <link rel="stylesheet" href="{% static 'garment_app/css/admin.css' %}">
+  <script src="{% static 'garment_app/js/live_search.js' %}" defer></script>
+  <script src="{% static 'garment_app/js/admin-pagination-sync.js' %}" defer></script>
+  <link rel="icon" href="{% static 'garment_app/images/favicon.png' %}" type="image/png">
+
+  <script>
+    // ---- GLOBAL: Replace browser tab title with last 2 levels (+ action) ----
+    document.addEventListener("DOMContentLoaded", function () {
+      try {
+        var path = (window.location.pathname || "/").replace(/\/+/g, "/");
+        var parts = path.split("/").filter(Boolean); // ["home","masters","product","123","change"]
+
+        // Find admin base ("home") and work with the segments after it
+        var idx = parts.indexOf("home");
+        var segs = idx >= 0 ? parts.slice(idx + 1) : parts;
+
+        function prettify(seg) {
+          if (!seg) return "";
+          seg = seg.replace(/[-_]+/g, " ");
+          return seg.replace(/\w\S*/g, function (t) {
+            return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+          });
+        }
+
+        // Determine action (add/change/delete/history) in Django admin URLs
+        // Patterns:
+        //   app/model/                         -> list
+        //   app/model/add/                     -> add
+        //   app/model/<id>/change/             -> change
+        //   app/model/<id>/delete/             -> delete
+        //   app/model/<id>/history/            -> history
+        var action = "";
+        if (segs.length >= 3) {
+          var last = segs[segs.length - 1];           // "change" | "delete" | "history"
+          var prev = segs[segs.length - 2];           // id or "add"
+          if (last === "change" || last === "delete" || last === "history") {
+            action = prettify(last);                  // Change/Delete/History
+          } else if (prev === "add" || last === "add") {
+            action = "Add";
+          }
+        } else if (segs.length === 2) {
+          // list page: no action
+          action = "";
+        } else if (segs.length === 1) {
+          // app index (rare): no action
+          action = "";
+        }
+
+        var title = "Admin";
+        if (segs.length >= 2) {
+          title = prettify(segs[0]) + " | " + prettify(segs[1]);
+          if (action) {
+            title += " | " + action;
+          }
+        } else if (segs.length === 1) {
+          title = prettify(segs[0]) || "Admin";
+        }
+
+        document.title = title;
+      } catch (e) {
+        console && console.warn && console.warn("Title override failed:", e);
+      }
+    });
+  </script>
+
+  <script>
+    // ---- GLOBAL: Enter-to-next-field in forms ----
+    document.addEventListener("DOMContentLoaded", function () {
+      document.querySelectorAll("form").forEach(function(form) {
+        const fields = Array.from(
+          form.querySelectorAll("input, select, textarea")
+        ).filter(f => f.type !== "hidden");
+        fields.forEach(function(field, idx) {
+          field.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && field.tagName !== "TEXTAREA") {
+              e.preventDefault();
+              const next = fields[idx + 1];
+              if (next) next.focus();
+              else form.requestSubmit ? form.requestSubmit() : form.submit();
+            }
+          });
+        });
+      });
+    });
+  </script>
+{% endblock %}
+
+{# =======================================================================
+   Branding: Logo + Title
+   ======================================================================= #}
+{% block branding %}
+  <div id="site-name" style="display:flex;align-items:center;gap:10px;">
+    <a href="{% url 'admin:index' %}" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+      <img src="{% static 'garment_app/images/logo.png' %}" alt="Logo" height="40" style="vertical-align:middle;">
+      <span style="margin-left:4px;font-weight:normal;font-size:18px;">
+        Garment Production System
+      </span>
+    </a>
+  </div>
+{% endblock %}
+
+{# --- NAV GLOBAL: keep default nav, then safely remove only the "View site" / "Visit site" link(s) --- #}
+{% block nav-global %}
+  {{ block.super }}
+
+  <script>
+    (function () {
+      // Safely remove admin "View site" / "Visit site" links only.
+      // Strategy:
+      // 1) Remove anchors with known class 'viewsite' (Django admin default).
+      // 2) Fallback: remove anchors whose visible text exactly matches common variants.
+      // 3) Remove the nearest <li> if present, otherwise remove the anchor itself.
+      function removeVisitSiteLinks() {
+        try {
+          var matchTexts = ["view site", "visit site", "view the site", "visit the site"];
+
+          // 1) Known class anchors (most reliable)
+          var classAnchors = document.querySelectorAll('a.viewsite');
+          classAnchors.forEach(function(a) {
+            var li = a.closest && a.closest('li');
+            if (li && li.parentNode) li.parentNode.removeChild(li);
+            else if (a.parentNode) a.parentNode.removeChild(a);
+          });
+
+          // 2) Fallback: exact visible-text matches (trimmed, case-insensitive)
+          var anchors = document.querySelectorAll('a');
+          anchors.forEach(function(a) {
+            if (!a || !a.textContent) return;
+            var txt = a.textContent.trim().toLowerCase();
+            if (matchTexts.indexOf(txt) !== -1) {
+              var li = a.closest && a.closest('li');
+              if (li && li.parentNode) {
+                li.parentNode.removeChild(li);
+              } else if (a.parentNode) {
+                a.parentNode.removeChild(a);
+              }
+            }
+          });
+        } catch (e) {
+          if (window.console && console.error) console.error("removeVisitSiteLinks error:", e);
+        }
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', removeVisitSiteLinks);
+      } else {
+        removeVisitSiteLinks();
+      }
+    })();
+  </script>
+{% endblock %}
+
+
+
+
+{# =======================================================================
+   Footer: Pagination toggle script + sticky footer bar
+   ======================================================================= #}
+{% block footer %}
+  {{ block.super }}
+
+  <script>
+    // ---- GLOBAL: Pagination toggle (Show all / Paginate) ----
+    (function () {
+      function findSearchSubmit() {
+        return document.querySelector('#changelist-search input[type="submit"], .search-form input[type="submit"]');
+      }
+      function urlHasAll() {
+        try { return new URL(window.location.href).searchParams.get('all') === '1'; }
+        catch (e) { return false; }
+      }
+      function buildButton() {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'admin-toggle-paginate';
+        btn.style.marginLeft = '8px';
+        btn.style.padding = '6px 10px';
+        btn.style.fontSize = '13px';
+        btn.style.borderRadius = '4px';
+        btn.style.cursor = 'pointer';
+        btn.style.border = '1px solid #555';
+        btn.style.backgroundColor = '#333';
+        btn.style.color = '#eee';
+
+        function setLabel() {
+          btn.textContent = urlHasAll() ? 'Paginate' : 'Show all';
+        }
+        setLabel();
+
+        btn.addEventListener('click', function () {
+          var u = new URL(window.location.href);
+          if (u.searchParams.get('all') === '1') {
+            u.searchParams.delete('all'); u.searchParams.delete('p');
+          } else {
+            u.searchParams.set('all', '1'); u.searchParams.delete('p');
+          }
+          window.location.href = u.toString();
+        });
+        return { btn: btn, setLabel: setLabel };
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        var searchSubmit = findSearchSubmit();
+        var built = buildButton();
+        if (searchSubmit && searchSubmit.parentNode) {
+          searchSubmit.parentNode.insertBefore(built.btn, searchSubmit.nextSibling);
+        }
+      });
+    })();
+  </script>
+
+  <div id="footer" style="
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      padding: 4px 6px;
+      font-size: 12px;
+      color: #aaa;
+      background: #111;
+      border-top: 1px solid #333;
+      z-index: 2000;
+  ">
+    Powered by ©RFC Labs. 2025
+  </div>
+
+
+{% endblock %}
