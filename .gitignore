@@ -1,9 +1,55 @@
-.env
-__pycache__/
+# ------------------------
+# Python / Django
+# ------------------------
 *.pyc
-.venv/
-.pytest_cache/
+__pycache__/
+*.pyo
+*.pyd
 *.sqlite3
-/backups/
-/.vscode/
+*.db
+*.egg-info/
+*.egg
+dist/
+build/
 
+# Django static/media
+staticfiles/
+media/
+
+# Local settings / secrets
+.env
+*.env
+.env.*
+
+# Django migrations cache
+*/migrations/__pycache__/
+*/migrations/*.pyc
+# But keep migration scripts
+# (do not ignore 000*.py)
+
+# ------------------------
+# Docker
+# ------------------------
+# Logs and volumes
+*.log
+docker-compose.override.yml  # local-only overrides
+.volumes/
+tmp/
+
+# ------------------------
+# IDE / Editor
+# ------------------------
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ------------------------
+# Tests
+# ------------------------
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/

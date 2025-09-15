@@ -5,7 +5,8 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "unsafe-default")
+import os
+SECRET_KEY = os.getenv('SECRET_KEY','please-change-this-dev-secret')
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("1", "true", "yes")
 
 _allowed = os.getenv("DJANGO_ALLOWED_HOSTS", "")
