@@ -32,10 +32,10 @@
   {{ block.super }}
 
   {# Custom CSS and JS for admin tweaks #}
-  <link rel="stylesheet" href="{% static 'garment_app/css/admin.css' %}">
-  <script src="{% static 'garment_app/js/live_search.js' %}" defer></script>
-  <script src="{% static 'garment_app/js/admin-pagination-sync.js' %}" defer></script>
-  <link rel="icon" href="{% static 'garment_app/images/favicon.png' %}" type="image/png">
+  <link rel="stylesheet" href="{% static 'css/admin.css' %}">
+  <script src="{% static 'js/live_search.js' %}" defer></script>
+  <script src="{% static 'js/admin-pagination-sync.js' %}" defer></script>
+  <link rel="icon" href="{% static 'images/favicon.png' %}" type="image/png">
 
   <script>
     // ---- GLOBAL: Replace browser tab title with last 2 levels (+ action) ----
@@ -125,7 +125,7 @@
 {% block branding %}
   <div id="site-name" style="display:flex;align-items:center;gap:10px;">
     <a href="{% url 'admin:index' %}" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
-      <img src="{% static 'garment_app/images/logo.png' %}" alt="Logo" height="40" style="vertical-align:middle;">
+      <img src="{% static 'images/logo.png' %}" alt="Logo" height="40" style="vertical-align:middle;">
       <span style="margin-left:4px;font-weight:normal;font-size:18px;">
         Garment Production System
       </span>

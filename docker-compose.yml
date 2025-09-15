@@ -1,3 +1,5 @@
+version: "3.8"
+
 services:
   web:
     build: .
@@ -5,14 +7,19 @@ services:
       - .env
     depends_on:
       - db
-    # bind-mount the app dir so code edits update immediately (works for local & VPS)
     volumes:
-      - ./app:/code:delegated
-      - static_volume:/code/staticfiles
-    # expose internal port only; Caddy reverse-proxies to it
+      - "${HOST_APP_PATH:-./app}:/code:delegated"            # host-specific (set HOST_APP_PATH in .env)
+      - static_volume:/code/staticfiles                      # older path some configs expect
+      - static_volume:/code/config/staticfiles               # canonical STATIC_ROOT used by Django
+      - media_volume:/code/media
     ports:
-      - "8000:8000"                 # optional for local testing; can be left or removed on VPS
+      - "8000:8000"
     restart: unless-stopped
+    environment:
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-config.settings.production}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_ALLOWED_HOSTS=${DJANGO_ALLOWED_HOSTS}
 
   db:
     image: postgres:15
@@ -30,17 +37,19 @@ services:
     ports:
       - "80:80"
       - "443:443"
-    # give Caddy access to the Caddyfile and to the static volume
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - "${HOST_CADDYFILE_PATH:-./caddy/Caddyfile}:/etc/caddy/Caddyfile:ro"  # host Caddyfile path (set in .env)
       - caddy_data:/data
       - caddy_config:/config
       - static_volume:/code/staticfiles:ro
+      - static_volume:/code/config/staticfiles:ro
     environment:
-      - DOMAIN=${DOMAIN}   # ensures {$DOMAIN} inside Caddyfile is substituted
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
 
 volumes:
   pgdata:
   static_volume:
   caddy_data:
   caddy_config:
+  media_volume:

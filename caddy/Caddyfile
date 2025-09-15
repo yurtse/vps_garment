@@ -1,26 +1,32 @@
 {$DOMAIN} {
-  # redirect root to /admin
-  @root {
-    path /
-    method GET
-  }
-  redir @root /home/ 302
+	# redirect root to /home
+	@root {
+		path /
+		method GET
+	}
+	redir @root /home/ 302
 
-  # serve static files from the static volume the web container writes to
-  handle_path /static/* {
-    root * /code/staticfiles
-    file_server
-  }
+	# serve static files from Django's STATIC_ROOT
+	handle_path /static/* {
+		root * /code/config/staticfiles
+		file_server
+	}
 
-  # proxy all other traffic to web
-  handle {
-    reverse_proxy web:8000
-  }
+	# serve media files if needed
+	handle_path /media/* {
+		root * /code/media
+		file_server
+	}
 
-  log {
-    output stdout
-    format console
-  }
+	# proxy everything else to Django
+	handle {
+		reverse_proxy web:8000
+	}
 
-  encode zstd gzip
+	log {
+		output stdout
+		format console
+	}
+
+	encode zstd gzip
 }
