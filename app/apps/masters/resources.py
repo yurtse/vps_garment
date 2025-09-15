@@ -30,8 +30,8 @@ class ProductResource(resources.ModelResource):
     class Meta:
         model = Product
         import_id_fields = ("code",)
-        fields = ("code", "name", "product_group", "shade", "size", "uom", "active", "standard_cost")
-        export_order = ("code", "name", "product_group", "shade", "size", "uom", "active", "standard_cost")
+        fields = ("code", "name", "product_group", "style_group", "shade", "size", "uom", "active", "standard_cost")
+        export_order = ("code", "name", "product_group", "style_group", "shade", "size", "uom", "active", "standard_cost")
 
 
 class ProductPlantResource(resources.ModelResource):

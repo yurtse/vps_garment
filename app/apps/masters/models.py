@@ -17,6 +17,7 @@ class ProductGroup(models.TextChoices):
     FINISHED_GOOD = "FG", "Finished Good"
     RAW_MATERIAL = "RM", "Raw Material"
     WIP = "WIP", "Work in Progress"
+    TRIMS = "TRM", "Trims BOM Excl" 
 
 
 class Plant(models.Model):
@@ -131,6 +132,14 @@ class Product(models.Model):
         choices=ProductGroup.choices,
         default=ProductGroup.RAW_MATERIAL,
     )
+    
+    style_group = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        help_text="Optional: style group / collection"
+    )
+    
     shade = models.CharField(max_length=60, blank=True, default="")
     size = models.CharField(max_length=30, blank=True, default="")
     uom = models.CharField(max_length=20, blank=True, default="pcs")

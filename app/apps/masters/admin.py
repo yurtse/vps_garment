@@ -194,9 +194,9 @@ class UserProfileAdmin(PaginationMixin, ImportExportModelAdmin):
 @admin.register(Product)
 class ProductAdmin(PaginationMixin, ImportExportModelAdmin):
     resource_class = ProductResource
-    list_display = ("code", "name", "product_group", "uom", "active", "standard_cost")
-    search_fields = ("code", "name", "product_group")
-    list_filter = ("active", "product_group")
+    list_display = ("code", "name", "shade", "size", "product_group", "style_group", "uom", "active", "standard_cost")
+    search_fields = ("code", "name", "product_group", "style_group")
+    list_filter = ("active", "product_group", "style_group")
     ordering = ("code",)
 
 
