@@ -70,7 +70,7 @@ DATABASES = {
 }
 
 STATIC_URL = 'static/'
-STATIC_ROOT = BASE_DIR / 'config' / 'staticfiles'
+STATIC_ROOT = Path('/code/config/staticfiles')
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 
 MEDIA_URL = '/media/'
