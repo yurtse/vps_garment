@@ -1,29 +1,24 @@
-#!/bin/sh
+#!/usr/bin/env sh
 set -e
 
-# Optionally wait for DB to be reachable when WAIT_FOR_DB is set
+# Wait for DB if WAIT_FOR_DB is set (simple wait loop)
 if [ -n "$WAIT_FOR_DB" ]; then
   echo "Waiting for DB ${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}..."
-  until python - <<PY >/dev/null 2>&1
-import os,sys,socket
-h=os.environ.get('POSTGRES_HOST','db')
-p=int(os.environ.get('POSTGRES_PORT','5432'))
-try:
-    s=socket.create_connection((h,p),2); s.close(); print("ok")
-except Exception:
-    sys.exit(1)
-PY
-  do
-    echo "DB not reachable yet - sleeping 2s"
+  # simple wait-for loop (you can use wait-for-it or dockerize for advanced logic)
+  COUNTER=0
+  until nc -z ${POSTGRES_HOST:-db} ${POSTGRES_PORT:-5432} || [ $COUNTER -ge 30 ]; do
+    echo "  waiting for db... ($COUNTER)"
+    COUNTER=$((COUNTER+1))
     sleep 2
   done
 fi
 
+# Run migrations and collectstatic (safe for idempotent runs)
 echo "Running migrations..."
 python manage.py migrate --noinput
 
 echo "Collecting static files..."
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput || true
 
-# Execute passed commands (gunicorn by default)
+# Exec the container CMD (gunicorn) as PID 1
 exec "$@"

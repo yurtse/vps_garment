@@ -2,45 +2,43 @@ services:
   web:
     build: .
     env_file:
-      - .env
+    - .env
     depends_on:
-      - db
-    # bind-mount the app dir so code edits update immediately (works for local & VPS)
+    - db
     volumes:
-      - ./app:/code:delegated
-      - static_volume:/code/staticfiles
-    # expose internal port only; Caddy reverse-proxies to it
+    - ./app:/code:delegated
+    - static_volume:/code/staticfiles
+    - media_volume:/code/media
     ports:
-      - "8000:8000"                 # optional for local testing; can be left or removed on VPS
+    - 8000:8000
     restart: unless-stopped
-
+    environment:
+    - DJANGO_SETTINGS_MODULE=config.settings.production
   db:
     image: postgres:15
     env_file:
-      - .env
+    - .env
     restart: unless-stopped
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
+    - pgdata:/var/lib/postgresql/data
   caddy:
     image: caddy:2
     env_file:
-      - .env
+    - .env
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    # give Caddy access to the Caddyfile and to the static volume
+    - 80:80
+    - 443:443
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - static_volume:/code/staticfiles:ro
+    - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    - caddy_data:/data
+    - caddy_config:/config
+    - static_volume:/code/staticfiles:ro
     environment:
-      - DOMAIN=${DOMAIN}   # ensures {$DOMAIN} inside Caddyfile is substituted
-
+    - DOMAIN=${DOMAIN}
 volumes:
-  pgdata:
-  static_volume:
-  caddy_data:
-  caddy_config:
+  pgdata: null
+  static_volume: null
+  caddy_data: null
+  caddy_config: null
+  media_volume: null
