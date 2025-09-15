@@ -143,7 +143,7 @@ class Product(models.Model):
     shade = models.CharField(max_length=60, blank=True, default="")
     size = models.CharField(max_length=30, blank=True, default="")
     uom = models.CharField(max_length=20, blank=True, default="pcs")
-    standard_cost = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0.0"))
+    standard_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.0"))
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -163,7 +163,7 @@ class ProductPlant(models.Model):
     code = models.CharField(max_length=64, blank=True, null=True)
     name = models.CharField(max_length=255, blank=True, null=True)
     active = models.BooleanField(default=True)
-    standard_cost = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0.0"))
+    standard_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.0"))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -218,7 +218,7 @@ class BOMHeader(models.Model):
     effective_to = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     scrap_percent = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal("0.0"))
-    overhead_cost = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal("0.0"))
+    overhead_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.0"))
     notes = models.TextField(blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -277,7 +277,7 @@ class BOMItem(models.Model):
         related_name="bom_components",
         help_text="Component as plant-specific product (ProductPlant)"
     )
-    quantity = models.DecimalField(max_digits=10, decimal_places=4)
+    quantity = models.DecimalField(max_digits=10, decimal_places=2)
 
     class Meta:
         unique_together = ("bom", "component")
