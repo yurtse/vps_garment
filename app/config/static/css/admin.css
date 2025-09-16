@@ -38,5 +38,10 @@
   color: #ddd;
 }
 
-/* hide the changelist H1 (only on changelist pages) */
-#content > h1 { display: none !important; margin: 0 !important; padding: 0 !important; height: 0 !important; }
+/* Hide the "Select … to change" H1 only on changelist pages */
+body.change-list #content > h1 {
+  display: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  height: 0 !important;
+}
