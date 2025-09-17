@@ -5,3 +5,4 @@ gunicorn
 whitenoise>=6.0
 django-import-export
 dj-database-url>=1.0.0
+tablib[xlsx]
