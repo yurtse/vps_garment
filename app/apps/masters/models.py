@@ -353,27 +353,33 @@ class BOMHeader(models.Model):
             self.save(update_fields=["workflow_state", "approved_by", "approved_at", "updated_at"])
 
     @classmethod
-    def create_with_next_version(cls, product_plant, **kwargs):
+    def create_with_next_version(cls, product_plant, max_retries=5, retry_delay=0.05, **kwargs):
         """
-        Concurrency-safe factory to allocate the next version for a given product_plant.
-
-        Serializes allocation by taking a SELECT ... FOR UPDATE lock on the ProductPlant row.
-        Usage: with transaction.atomic(): BOMHeader.create_with_next_version(pp, effective_from=..., ...)
+        Concurrency-safe factory that allocates the next version and creates the BOM.
+        Uses SELECT ... FOR UPDATE on ProductPlant to serialize allocation, and retries
+        on IntegrityError as a safety net (optimistic retry).
         """
-        # Import here to avoid circular import if ProductPlant is in same file
         ProductPlant = cls._meta.apps.get_model("masters", "ProductPlant")
-        with transaction.atomic():
-            # lock the ProductPlant row to serialize concurrent creators
-            pp = ProductPlant.objects.select_for_update().get(pk=product_plant.pk if hasattr(product_plant, "pk") else product_plant)
-            # get the highest existing version
-            last = cls.objects.filter(product_plant=pp).order_by("-version").first()
-            next_version = (last.version + 1) if last else 1
-            kwargs.setdefault("version", next_version)
-            # ensure product_plant is the instance
-            kwargs.setdefault("product_plant", pp)
-            instance = cls.objects.create(**kwargs)
-            return instance
-
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                with transaction.atomic():
+                    # lock the ProductPlant row to serialize concurrent creators
+                    pp = ProductPlant.objects.select_for_update().get(pk=product_plant.pk if hasattr(product_plant, "pk") else product_plant)
+                    last = cls.objects.filter(product_plant=pp).order_by("-version").first()
+                    next_version = (last.version + 1) if last else 1
+                    kwargs.setdefault("version", next_version)
+                    kwargs.setdefault("product_plant", pp)
+                    instance = cls.objects.create(**kwargs)
+                    return instance
+            except IntegrityError as exc:
+                # possible unique (product_plant, version) race — retry a few times
+                if attempt >= max_retries:
+                    raise
+                time.sleep(retry_delay * attempt)
+                continue
+                
 class BOMItem(models.Model):
     bom = models.ForeignKey("BOMHeader", related_name="items", on_delete=models.CASCADE)
     component = models.ForeignKey(
@@ -409,3 +415,11 @@ class BOMItem(models.Model):
 
     def __str__(self):
         return f"{self.component.product.code}@{self.component.plant.code} x {self.quantity}"
+        
+        
+class WorkflowState(models.TextChoices):
+    DRAFT = "DRAFT", _("Draft")
+    FOR_APPROVAL = "FOR_APPROVAL", _("For Approval")
+    APPROVED = "APPROVED", _("Approved")
+    ACTIVE = "ACTIVE", _("Active")
+    ARCHIVED = "ARCHIVED", _("Archived")
