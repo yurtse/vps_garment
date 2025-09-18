@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.utils.translation import gettext as _
 from django.utils.decorators import method_decorator
 from django.db.models import Q
-
+from django.utils.translation import gettext_lazy as _
 from import_export.admin import ImportExportModelAdmin
 from django.contrib.admin import TabularInline
 from django.contrib.auth import get_user_model
@@ -605,41 +605,77 @@ class BOMItemInline(TabularInline):
         return obj.component.product.uom if obj and obj.component else ""
     uom_display.short_description = "UOM"
 
-
-@admin.register(BOMHeader)
 class BOMHeaderAdmin(admin.ModelAdmin):
-    list_display = ("product_plant", "version", "is_active", "effective_from", "effective_to", "created_by", "created_at", "duplicate_action")
-    search_fields = ("product_plant__product__code", "product_plant__product__name", "product_plant__plant__code")
-    list_filter = ("product_plant__plant", "is_active")
+    list_display = (
+        "product_plant",
+        "version",
+        "workflow_state",
+        "effective_from",
+        "effective_to",
+        "approved_by",
+        "approved_at",
+        "created_at",
+        "duplicate_action",
+    )
+    search_fields = (
+        "product_plant__product__code",
+        "product_plant__product__name",
+        "product_plant__plant__code",
+    )
+    list_filter = ("product_plant__plant", "workflow_state")
     inlines = (BOMItemInline,)
-    readonly_fields = ("version", "created_by", "created_at")
-    actions = ("action_duplicate_selected_boms",)
+    readonly_fields = (
+        "version",
+        "workflow_state",
+        "approved_by",
+        "approved_at",
+        "total_cost_snapshot",
+        "immutable_snapshot",
+        "created_at",
+        "updated_at",
+    )
+    actions = ("action_duplicate_selected_boms", "action_approve_selected_boms")
 
     fieldsets = (
         (None, {
-            "fields": (("product_plant", "version"), ("is_active",), ("effective_from", "effective_to"))
+            "fields": (
+                ("product_plant", "version"),
+                ("workflow_state",),
+                ("effective_from", "effective_to"),
+            )
         }),
-        ("Costing", {"fields": ("scrap_percent", "overhead_cost")}),
-        ("Notes", {"fields": ("notes",)}),
+        ("Costing / Snapshots", {
+            "fields": ("total_cost_snapshot", "immutable_snapshot"),
+        }),
+        ("Approval / Audit", {
+            "fields": ("approved_by", "approved_at"),
+        }),
     )
+
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 
+    # ---------------- Custom admin actions / urls ----------------
+
     def get_urls(self):
         urls = super().get_urls()
         custom = [
-            path('<int:pk>/duplicate/', self.admin_site.admin_view(self.duplicate_view), name='garment_app_bomheader_duplicate'),
+            path(
+                "<int:pk>/duplicate/",
+                self.admin_site.admin_view(self.duplicate_view),
+                name="garment_app_bomheader_duplicate",
+            ),
         ]
         return custom + urls
 
     def duplicate_view(self, request, pk):
         original = BOMHeader.objects.get(pk=pk)
-        if not request.user.has_perm('garment_app.add_bomheader'):
+        if not request.user.has_perm("garment_app.add_bomheader"):
             messages.error(request, "Permission denied.")
-            return redirect('..')
+            return redirect("..")
 
         with transaction.atomic():
             new = BOMHeader.objects.create(
@@ -658,14 +694,15 @@ class BOMHeaderAdmin(admin.ModelAdmin):
         return redirect(f"../{new.pk}/change/")
 
     def duplicate_action(self, obj):
-        url = reverse('admin:garment_app_bomheader_duplicate', args=[obj.pk])
+        url = reverse("admin:garment_app_bomheader_duplicate", args=[obj.pk])
         return format_html('<a class="button" href="{}">Duplicate</a>', url)
+
     duplicate_action.short_description = "Duplicate"
 
     def action_duplicate_selected_boms(self, request, queryset):
         created = 0
         for bom in queryset:
-            if not request.user.has_perm('garment_app.add_bomheader'):
+            if not request.user.has_perm("garment_app.add_bomheader"):
                 continue
             with transaction.atomic():
                 new = BOMHeader.objects.create(
@@ -681,8 +718,42 @@ class BOMHeaderAdmin(admin.ModelAdmin):
                 for it in bom.items.all():
                     new.items.create(component=it.component, quantity=it.quantity)
                 created += 1
-        self.message_user(request, f"Created {created} duplicate BOM(s) (inactive).", level=messages.INFO)
+        self.message_user(
+            request, f"Created {created} duplicate BOM(s) (inactive).", level=messages.INFO
+        )
+
     action_duplicate_selected_boms.short_description = "Duplicate selected BOM(s) as new version (inactive)"
+
+    # ---------------- Approve action & helpers ----------------
+
+    @admin.action(description="Approve selected BOM(s)")
+    def action_approve_selected_boms(self, request, queryset):
+        success = 0
+        for bom in queryset:
+            # permission check
+            if not request.user.has_perm("garment_app.change_bomheader"):
+                self.message_user(request, f"No permission to approve BOM id={bom.pk}", level=messages.WARNING)
+                continue
+            try:
+                # If you have a helper to compute total cost, call it here:
+                # total_cost = compute_bom_total_cost(bom)
+                total_cost = None
+                bom.approve(user=request.user, total_cost=total_cost)
+                success += 1
+            except Exception as exc:
+                self.message_user(
+                    request, f"Failed to approve BOM id={bom.pk}: {exc}", level=messages.ERROR
+                )
+        self.message_user(request, _("Approved %d BOM(s).") % success)
+
+    action_approve_selected_boms.short_description = "Approve selected BOM(s)"
+
+# register or re-register
+try:
+    admin.site.unregister(BOMHeader)
+except Exception:
+    pass
+admin.site.register(BOMHeader, BOMHeaderAdmin)
 
 
 # Safe User admin override
