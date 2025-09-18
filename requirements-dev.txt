@@ -1,0 +1,17 @@
+-r requirements.txt
+
+# Testing
+
+pytest
+pytest-django
+
+# Optional: factories and helpers for tests
+
+factory-boy
+pytest-cov
+
+# Lint / formatting (optional)
+
+black
+isort
+flake8

@@ -17,7 +17,8 @@ class ProductGroup(models.TextChoices):
     FINISHED_GOOD = "FG", "Finished Good"
     RAW_MATERIAL = "RM", "Raw Material"
     WIP = "WIP", "Work in Progress"
-    TRIMS = "TRM", "Trims BOM Excl" 
+    TRIMS1 = "TRM1", "Trims BOM Excl" 
+    TRIMS0 = "TRM0", "Trims BOM Incl" 
 
 
 class Plant(models.Model):
