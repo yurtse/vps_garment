@@ -78,3 +78,4 @@ MEDIA_ROOT = str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # global formats that admin import/export will use by default
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 50000  # or any safe large number

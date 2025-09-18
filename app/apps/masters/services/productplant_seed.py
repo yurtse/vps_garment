@@ -15,7 +15,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import Exists, OuterRef, QuerySet
 from django.contrib.auth import get_user_model
 
-from apps.masters.models import Product, ProductPlant, Plant
+from apps.masters.models import Product, ProductPlant, Plant, ProductGroup
 
 User = get_user_model()
 
@@ -75,10 +75,31 @@ def _filter_valid_pp_kwargs(candidate_kwargs: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def seed_productplants(products: Iterable, plants: Iterable, created_by: Optional[User]) -> Dict[str, Any]:
-    """Seed ProductPlant rows for given products into given plants."""
+    """Seed ProductPlant rows for given products into given plants.
+
+    Phase 1: non-invasive enhancement
+    - Populate denormalized fields `is_fg` and `product_type_code` on ProductPlant candidates.
+    - These fields are added to the candidate kwargs only; they are nullable in DB so this is safe.
+    - The public function signature and behavior are unchanged; bulk_create and per-instance save fallback remain.
+    """
     products_list = _normalize_products_arg(products)
     plants_list = _normalize_plants_arg(plants)
     prod_pks = [p.pk for p in products_list]
+
+    # mapping from ProductGroup (enum/value) to small int codes used for product_type_code
+    # adjust codes to match your conventions if needed
+    _GROUP_TO_CODE = {
+        # using enum members if ProductGroup is an enum in models
+        getattr(ProductGroup, "FINISHED_GOOD", "FG"): 1,
+        getattr(ProductGroup, "RAW_MATERIAL", "RM"): 2,
+        getattr(ProductGroup, "WIP", "WIP"): 3,
+        getattr(ProductGroup, "TRIMS", "TRM"): 4,
+        # also support string keys as fallback
+        "FG": 1,
+        "RM": 2,
+        "WIP": 3,
+        "TRM": 4,
+    }
 
     summary: Dict[str, Any] = {'total_products': len(prod_pks), 'plants': {}}
 
@@ -119,6 +140,30 @@ def seed_productplants(products: Iterable, plants: Iterable, created_by: Optiona
                 if created_by is not None:
                     candidate_kwargs['created_by'] = created_by
 
+                # ----------------- Phase 1 additions (denormalized fields) -----------------
+                # Determine product_group value (support enum member or string)
+                pg = getattr(p, 'product_group', None)
+
+                # is_fg: True if product_group indicates Finished Good (safe fallback to string 'FG')
+                try:
+                    is_fg_val = (pg == ProductGroup.FINISHED_GOOD) or (str(pg).upper().startswith("FG"))
+                except Exception:
+                    # fallback: compare as string
+                    is_fg_val = (str(pg).upper().startswith("FG")) if pg is not None else None
+                candidate_kwargs['is_fg'] = is_fg_val
+
+                # product_type_code: map using _GROUP_TO_CODE with resilient lookups
+                code_val = None
+                try:
+                    # try exact enum/key match first
+                    code_val = _GROUP_TO_CODE.get(pg)
+                except Exception:
+                    code_val = None
+                if code_val is None and pg is not None:
+                    code_val = _GROUP_TO_CODE.get(str(pg).upper())
+                candidate_kwargs['product_type_code'] = code_val
+                # -------------------------------------------------------------------------
+
                 pp_kwargs = _filter_valid_pp_kwargs(candidate_kwargs)
                 pp = ProductPlant(**pp_kwargs)
                 to_create.append(pp)
@@ -130,6 +175,7 @@ def seed_productplants(products: Iterable, plants: Iterable, created_by: Optiona
                     plant_summary['created'] = len(to_create)
                     plant_summary['created_pks'] = [p.pk for p in now_create_products]
                 except Exception as exc:
+                    # fallback to per-instance save to collect granular failures
                     for idx, pp in enumerate(to_create):
                         try:
                             pp.save()
@@ -145,6 +191,7 @@ def seed_productplants(products: Iterable, plants: Iterable, created_by: Optiona
             summary['plants'][plant.id] = plant_summary
 
     return summary
+
 
 
 def resolve_product_and_plant_from_instance(instance) -> Tuple[Optional[Product], Optional[Plant]]:

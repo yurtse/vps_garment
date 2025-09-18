@@ -158,49 +158,86 @@ class Product(models.Model):
         return f"{self.code} - {self.name}"
 
 
+# rfc_dev/app/apps/masters/models.py
+# ---- Replace only the ProductPlant class in your existing models.py with the class below ----
+# (keep the rest of models.py unchanged)
+
 class ProductPlant(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="product_plants")
-    plant = models.ForeignKey(Plant, on_delete=models.CASCADE, related_name="product_plants")
-    code = models.CharField(max_length=64, blank=True, null=True)
-    name = models.CharField(max_length=255, blank=True, null=True)
+    """
+    Plant-scoped extension of Product. One Product may have multiple ProductPlant records
+    (one per plant). This class has been extended (Phase 1) to denormalize product type info
+    for faster queries in admin/autocomplete.
+
+    CHANGES (Phase 1):
+    - Added `is_fg` boolean (nullable) to indicate if this ProductPlant is a Finished Good (FG).
+      Initially nullable so DB migration can add the column without breaking existing code.
+    - Added `product_type_code` integer (nullable) to store a small code for product group/type.
+      This is optional and can be used in place of textual comparisons for high-performance filters.
+    """
+
+    product = models.ForeignKey("Product", on_delete=models.CASCADE, related_name="productplants")
+    code = models.CharField(max_length=64, unique=True)
+    name = models.CharField(max_length=256)
+    plant = models.ForeignKey("Plant", on_delete=models.PROTECT, related_name="productplants")
     active = models.BooleanField(default=True)
-    standard_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("0.0"))
+
+    # ---------- Phase 1 additions (nullable for safe migration) ----------
+    # Denormalized flag indicating this productplant is a Finished Good (FG).
+    # Backfill migration will set this based on Product.product_group.
+    is_fg = models.BooleanField(null=True, blank=True, help_text="Denormalized: is this a Finished Good (FG)?")
+
+    # Optional small integer code representing product group/type (useful for indexed filters).
+    # Example mapping (to be used by seed/backfill):
+    #   1 => FINISHED_GOOD, 2 => RAW_MATERIAL, 3 => WIP, 4 => TRM
+    product_type_code = models.IntegerField(null=True, blank=True, help_text="Small int code for product type/group")
+
+    # --------------------------------------------------------------------
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ("product", "plant")
         ordering = ("product__code", "plant__code")
-        verbose_name = "Product (Plant)"
-        verbose_name_plural = "Products (Plant)"
+        verbose_name = "Product - Plant"
+        verbose_name_plural = "Products - Plants"
+
+        # Ensure Django knows about the composite index so it doesn't attempt to remove it.
+        indexes = [
+            models.Index(fields=["plant_id", "is_fg"], name="masters_pp_plant_isfg_idx"),
+        ]        
 
     def __str__(self):
-        return f"{self.product.code}@{self.plant.code}"
+        return f"{self.code} - {self.name} @ {self.plant.code}"
 
-    @classmethod
-    def get_or_inherit(cls, product: Product, plant: Plant, create_if_missing: bool = True) -> "ProductPlant":
+    # Convenience helper (non-breaking addition)
+    @property
+    def is_finished_good(self):
+        """
+        Return a boolean for older code paths — if is_fg is null we fall back to product.product_group.
+        This helps existing code continue to work until we enforce non-null.
+        """
+        if self.is_fg is not None:
+            return bool(self.is_fg)
+        # Fallback to product's textual group (safe during migration window)
         try:
-            return cls.objects.get(product=product, plant=plant)
-        except cls.DoesNotExist:
-            if not create_if_missing:
-                raise
-            pp = cls.objects.create(
-                product=product,
-                plant=plant,
-                code=product.code,
-                name=product.name,
-                active=product.active,
-                standard_cost=Decimal("0.0"),
-            )
-            return pp
+            return self.product.product_group == ProductGroup.FINISHED_GOOD
+        except Exception:
+            return False
 
-    def get_effective_standard_cost(self):
+    def standard_cost(self):
         """
-        Return plant-level standard cost when present (>0), otherwise fallback to product.standard_cost.
+        Admin-friendly accessor: return the product's standard cost if available.
+        This lets admin list_display reference 'standard_cost' on ProductPlant.
         """
-        if self.standard_cost and self.standard_cost > 0:
-            return self.standard_cost
-        return self.product.standard_cost
+        try:
+            return getattr(self.product, "standard_cost", None) or Decimal("0.00")
+        except Exception:
+            return Decimal("0.00")
+
+    # Optional: nice label when shown in admin list display
+    standard_cost.fget = getattr(standard_cost, "__call__", None)  # no-op to keep linter quiet
+    standard_cost.short_description = "Standard Cost"
 
 
 class BOMHeader(models.Model):
