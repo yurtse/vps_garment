@@ -1,3 +1,4 @@
+# app/apps/masters/admin.py
 import csv
 import io
 from django.contrib import admin, messages
@@ -605,7 +606,50 @@ class BOMItemInline(TabularInline):
         return obj.component.product.uom if obj and obj.component else ""
     uom_display.short_description = "UOM"
 
+
+# -----------------------------
+# BOMHeader admin: small custom form to use product_plant_name + hidden product_plant id
+# -----------------------------
+class BOMHeaderAdminForm(forms.ModelForm):
+    product_plant_name = forms.CharField(
+        required=False,
+        label="Finished Good (type to search by product name)",
+        widget=forms.TextInput(attrs={"class": "vTextField", "autocomplete": "off"})
+    )
+    product_plant = forms.ModelChoiceField(
+        queryset=ProductPlant.objects.none(),
+        widget=forms.HiddenInput(),
+        required=True,
+    )
+
+    class Meta:
+        model = BOMHeader
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # If instance exists, populate name field from related ProductPlant
+        if self.instance and getattr(self.instance, "product_plant_id", None):
+            try:
+                pp = ProductPlant.objects.select_related("product").get(pk=self.instance.product_plant_id)
+                self.fields["product_plant_name"].initial = pp.product.name
+                self.fields["product_plant"].initial = pp.pk
+            except ProductPlant.DoesNotExist:
+                pass
+
+    def clean(self):
+        cleaned = super().clean()
+        # ensure product_plant hidden id is set
+        pp_id = cleaned.get("product_plant")
+        if not pp_id:
+            raise forms.ValidationError("Please select a Finished Good using the search box.")
+        return cleaned
+
+
 class BOMHeaderAdmin(admin.ModelAdmin):
+    form = BOMHeaderAdminForm
+
     list_display = (
         "product_plant",
         "version",
@@ -639,7 +683,7 @@ class BOMHeaderAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {
             "fields": (
-                ("product_plant", "version"),
+                ("product_plant_name", "product_plant", "version"),
                 ("workflow_state",),
                 ("effective_from", "effective_to"),
             )
@@ -652,6 +696,11 @@ class BOMHeaderAdmin(admin.ModelAdmin):
         }),
     )
 
+    class Media:
+        js = ("masters/js/bom_autocomplete.js",)
+        css = {
+            "all": ("masters/css/bom_autocomplete.css",),  # <-- note the trailing comma
+        }
 
     def save_model(self, request, obj, form, change):
         if not obj.pk:

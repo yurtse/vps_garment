@@ -9,6 +9,6 @@ urlpatterns = [
     #path('', RedirectView.as_view(url='/admin/', permanent=False)),
     path('home/', admin.site.urls),
     path("", lambda req: redirect("/home/")),   # simple redirect    
-    # add other app urls below as you expand the project
-    # path('app1/', include('app1.urls')),
+    path("masters/", include("apps.masters.urls")),
+    
 ]

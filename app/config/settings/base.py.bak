@@ -19,7 +19,7 @@ CSRF_TRUSTED_ORIGINS = [x.strip() for x in os.getenv("DJANGO_CSRF_TRUSTED_ORIGIN
 
 INSTALLED_APPS = [
     'django.contrib.admin',
-    'django.contrib.auth',
+    'apps.masters.auth_config.CustomAuthConfig', #'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
@@ -70,10 +70,12 @@ DATABASES = {
 }
 
 STATIC_URL = 'static/'
-STATIC_ROOT = str(BASE_DIR / 'staticfiles')
+STATIC_ROOT = Path('/code/config/staticfiles')
 STATICFILES_DIRS = [ BASE_DIR / 'static' ]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = str(BASE_DIR / 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# global formats that admin import/export will use by default
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 50000  # or any safe large number

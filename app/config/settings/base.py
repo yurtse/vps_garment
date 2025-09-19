@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 import os
 SECRET_KEY = os.getenv('SECRET_KEY','please-change-this-dev-secret')
-DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("1", "true", "yes")
+DEBUG = os.getenv("DJANGO_DEBUG", "False").strip().lower() in ("1", "true", "yes")
 
 _allowed = os.getenv("DJANGO_ALLOWED_HOSTS", "")
 if _allowed:

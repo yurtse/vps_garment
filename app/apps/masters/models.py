@@ -287,6 +287,11 @@ class BOMHeader(models.Model):
             # ensure unique (product_plant, version) at DB level
             models.UniqueConstraint(fields=["product_plant", "version"], name="masters_bomheader_pp_version_uniq"),
         ]
+    class Media:
+        js = ("masters/js/bom_autocomplete.js",)
+        css = {
+            "all": ("masters/css/bom_autocomplete.css",)
+        }
 
     def __str__(self):
         return f"BOM {self.product_plant.code} v{self.version}"
